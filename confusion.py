@@ -35,6 +35,12 @@ class Confusion:
         conf.__complement_good_preds(labels_count)
         return conf
 
+    @staticmethod
+    def from_2d_list(list_of_lists, labels):
+        conf = Confusion.empty(labels)
+        conf.matrix = np.array(list_of_lists)
+        return conf
+
     def __complement_good_preds(self, labels_count):
         """Add entries from good predictions."""
         col_sums = self.matrix.sum(axis=0)
@@ -47,12 +53,18 @@ class Confusion:
             self.matrix[preds[index], reals[index]] += 1
 
     def __str__(self):
-        return f"acc:[{self.accuracy():.3f}] bin_acc:[{self.binary_accuracy():.3f}] " \
-               f"lbl:[{' '.join(self.labels).strip()}]" \
-               f"rec:[{' '.join([f'{a:.3f}' for a in self.recalls()]).strip()}] " \
-               f"prec:[{' '.join([f'{a:.3f}' for a in self.precisions()]).strip()}] " \
-               f"f1:[{' '.join([f'{a:.3f}' for a in self.f1scores()])}]"
-
+        result = f"acc:[{self.accuracy():.3f}] bin_acc:[{self.binary_accuracy():.3f}] " \
+                 f"lbl:[{' '.join(self.labels).strip()}] rec:[{' '.join([f'{a:.3f}' for a in self.recalls()]).strip()}] " \
+                 f"prec:[{' '.join([f'{a:.3f}' for a in self.precisions()]).strip()}] " \
+                 f"f1:[{' '.join([f'{a:.3f}' for a in self.f1scores()])}] "
+        mcc = self.mcc()
+        result += f"mcc: [{mcc:.3f}] " if mcc is not None else 'mcc: [NaN] '
+        fnr = self.false_negative_rate()
+        result += f"fnr: [{fnr:.3f}] " if fnr is not None else 'fnr: [NaN] '
+        fpr = self.false_positive_rate()
+        result += f"fpr: [{fpr:.3f}] " if fpr is not None else 'fpr: [NaN] '
+        result += f"conf: {' '.join([str(row) for row in self.matrix])}"
+        return result
     def accuracy(self):
         """Calculates accuracy."""
         trace = float(np.trace(self.matrix))
@@ -110,6 +122,48 @@ class Confusion:
         except ZeroDivisionError:
             return 0
 
+    def false_negative_rate(self):
+        if self.matrix.shape != (2, 2):
+            return None
+        m = self.matrix
+        try:
+            return float(m[1, 0]) / float(m[0, 0] + m[1, 0])
+        except ZeroDivisionError:
+            return None
+
+    def false_positive_rate(self):
+        if self.matrix.shape != (2, 2):
+            return None
+        m = self.matrix
+        try:
+            return float(m[0, 1]) / float(m[0, 1] + m[1, 1])
+        except ZeroDivisionError:
+            return None
+
+    def mcc(self):
+        if self.matrix.shape != (2, 2):
+            return None
+        m = self.matrix
+        try:
+            return float(m[0, 0] * m[1, 1] - m[0, 1] * m[1, 0]) / \
+                   float(((m[0, 0] + m[1, 0]) *
+                          (m[0, 0] + m[0, 1]) *
+                          (m[1, 1] + m[1, 0]) *
+                          (m[1, 1] + m[0, 1])) ** 0.5)
+        except ZeroDivisionError:
+            return None
+
+    def __add__(self, other):
+        result = Confusion.empty(self.labels)
+        result.matrix = np.add(self.matrix, other.matrix)
+        return result
+
+    def __truediv__(self, other):
+        """other should be a number"""
+        result = Confusion.empty(self.labels)
+        result.matrix = np.divide(self.matrix, other)
+        return result
+
     def save(self, filepath):
         with open(filepath, "w") as file:
             file.write(json.dumps(self, indent=2))
@@ -117,13 +171,7 @@ class Confusion:
     def to_json(self):
         return {'matrix': self.matrix.tolist(),
                 'size': self.size,
-                'labels': self.labels,
-                'stats': {'accuracy': self.accuracy(),
-                          'recalls': self.recalls().tolist(),
-                          'precisions': self.precisions().tolist(),
-                          'f1scores': self.f1scores().tolist(),
-                          'bin_acc': self.binary_accuracy()
-                          }
+                'labels': self.labels
                 }
 
     @staticmethod
