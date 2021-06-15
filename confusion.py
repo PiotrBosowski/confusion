@@ -65,12 +65,13 @@ class Confusion:
         result += f"fpr: [{fpr:.3f}] " if fpr is not None else 'fpr: [NaN] '
         result += f"conf: {' '.join([str(row) for row in self.matrix])}"
         return result
+
     def accuracy(self):
         """Calculates accuracy."""
         trace = float(np.trace(self.matrix))
         total = float(self.matrix.sum())
         try:
-            return trace/total
+            return trace / total
         except ZeroDivisionError:
             return 0
 
@@ -82,9 +83,9 @@ class Confusion:
         """
         col_sums = self.matrix.sum(axis=0)
         diagonal = self.matrix.diagonal()
-        return np.divide(diagonal, col_sums,
-                         out=np.zeros_like(diagonal),
-                         where=col_sums != 0)
+        return np.true_divide(diagonal, col_sums,
+                              out=np.zeros_like(diagonal, dtype=float),
+                              where=col_sums != 0)
 
     def precisions(self):
         """
@@ -94,7 +95,7 @@ class Confusion:
         row_sums = self.matrix.sum(axis=1)
         diagonal = self.matrix.diagonal()
         return np.divide(diagonal, row_sums,
-                         out=np.zeros_like(diagonal),
+                         out=np.zeros_like(diagonal, dtype=float),
                          where=row_sums != 0)
 
     def f1scores(self):
