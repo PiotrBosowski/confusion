@@ -49,6 +49,8 @@ class Confusion:
 
     def update(self, preds, reals):
         """Adds new results to existing confusion matrix."""
+        # todo: update should pass parameters to existing Confusion c-tors and
+        # todo: then perform __iadd__(self, other)
         for index, _ in enumerate(reals):
             self.matrix[preds[index], reals[index]] += 1
 
@@ -74,6 +76,13 @@ class Confusion:
             return trace / total
         except ZeroDivisionError:
             return 0
+
+    def accuracies_per_class(self):
+        return self.matrix.diagonal() / self.matrix.sum(axis=0)
+
+    def mean_accuracy(self):
+        accuracies_per_class = self.accuracies_per_class()
+        return np.mean(accuracies_per_class), np.std(accuracies_per_class)
 
     def recalls(self):
         """
