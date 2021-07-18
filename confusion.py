@@ -1,25 +1,56 @@
+import copy
 import json
-from dataclasses import dataclass
 
 import numpy as np
 
 
-@dataclass
 class Confusion:
     """
     Class for storing confusion matrix and calculating its statistics.
     """
-    labels: [str]
-    size: int
-    matrix: np.array
 
-    @staticmethod
-    def empty(labels):
-        """
-        Creates confusion mat. of size n x n, where n is the len(labels)
-        """
-        size = len(labels)
-        return Confusion(labels, size, np.zeros((size, size)))
+    # size: int
+    # matrix: 2-D np.array
+    # labels: 1-D np.array
+    # groups: dict of groups for stratifying the data
+
+    def __init__(self, labels, matrix=None, groups=None):
+        # group is a list of labels you want to evaluate closer
+        # (separately from the rest) or to compare with different group
+        try:
+            # in case labels is a list of labels
+            # check for no duplicates
+            assert len(labels) == len(set(labels))
+            self.labels = [label for label in labels]
+            self.size = len(self.labels)
+        except Exception:
+            # assuming labels is a number of labels
+            assert type(labels) is int
+            self.size = labels
+            # assigning generic names:
+            self.labels = map(str, list(range(self.size)))
+        self.matrix = np.zeros(shape=(self.size, self.size), dtype=np.int)
+        if matrix is not None:
+            matrix = np.array(matrix)
+            # error will be raised if dims dont match
+            self.matrix += matrix
+        self.groups = {}
+        if groups is not None:
+            # check if grouped labels exist
+            for group_name, grouped_labels in groups.items():
+                self.set_group(group_name, grouped_labels)
+
+    def set_group(self, name, labels):
+        # check if labels are contained in self.labels, then save their
+        # indices
+        if name not in self.groups:
+            labels_indices = [self.labels.index(label) if type(label) is str
+                              else label for label in labels]
+            assert len(labels_indices) == len(set(labels_indices)) and \
+                   all(type(index) is int for index in labels_indices)
+            self.groups[name] = [labels_indices]
+        else:
+            raise RuntimeError
 
     @staticmethod
     def from_wrong_preds(labels, preds, reals, labels_count):
@@ -30,14 +61,14 @@ class Confusion:
         :param labels_count: total number of images per label
         :return: confusion matrix
         """
-        conf = Confusion.empty(labels)
+        conf = Confusion(labels)
         conf.update(preds, reals)
         conf.__complement_good_preds(labels_count)
         return conf
 
     @staticmethod
     def from_2d_list(list_of_lists, labels):
-        conf = Confusion.empty(labels)
+        conf = Confusion(labels)
         conf.matrix = np.array(list_of_lists)
         return conf
 
@@ -55,10 +86,13 @@ class Confusion:
             self.matrix[preds[index], reals[index]] += 1
 
     def __str__(self):
-        result = f"acc:[{self.accuracy():.3f}] bin_acc:[{self.binary_accuracy():.3f}] " \
-                 f"lbl:[{' '.join(self.labels).strip()}] rec:[{' '.join([f'{a:.3f}' for a in self.recalls()]).strip()}] " \
-                 f"prec:[{' '.join([f'{a:.3f}' for a in self.precisions()]).strip()}] " \
-                 f"f1:[{' '.join([f'{a:.3f}' for a in self.f1scores()])}] "
+        result = \
+            f"acc:[{self.accuracy():.3f}] " \
+            f"bin_acc:[{self.binary_accuracy():.3f}] " \
+            f"lbl:[{' '.join(self.labels).strip()}] " \
+            f"rec:[{' '.join([f'{a:.3f}' for a in self.recalls()])}] " \
+            f"prec:[{' '.join([f'{a:.3f}' for a in self.precisions()])}] " \
+            f"f1:[{' '.join([f'{a:.3f}' for a in self.f1scores()])}] "
         mcc = self.mcc()
         result += f"mcc: [{mcc:.3f}] " if mcc is not None else 'mcc: [NaN] '
         fnr = self.false_negative_rate()
@@ -127,7 +161,8 @@ class Confusion:
         :return: binary accuracy
         """
         try:
-            return (float(self.matrix[0, 0]) + float(np.sum(self.matrix[1:, 1:])))\
+            return (float(self.matrix[0, 0]) +
+                    float(np.sum(self.matrix[1:, 1:]))) \
                    / float(np.sum(self.matrix))
         except ZeroDivisionError:
             return 0
@@ -164,13 +199,14 @@ class Confusion:
             return None
 
     def __add__(self, other):
-        result = Confusion.empty(self.labels)
+        # we should probably do plenty of assertions in here
+        result = copy.deepcopy(self)
         result.matrix = np.add(self.matrix, other.matrix)
         return result
 
     def __truediv__(self, other):
         """other should be a number"""
-        result = Confusion.empty(self.labels)
+        result = copy.deepcopy(self)
         result.matrix = np.divide(self.matrix, other)
         return result
 
@@ -181,7 +217,8 @@ class Confusion:
     def to_json(self):
         return {'matrix': self.matrix.tolist(),
                 'size': self.size,
-                'labels': self.labels
+                'labels': self.labels,
+                'groups': self.groups
                 }
 
     @staticmethod
