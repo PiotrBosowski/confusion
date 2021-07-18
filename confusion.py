@@ -48,9 +48,21 @@ class Confusion:
                               else label for label in labels]
             assert len(labels_indices) == len(set(labels_indices)) and \
                    all(type(index) is int for index in labels_indices)
-            self.groups[name] = [labels_indices]
+            self.groups[name] = labels_indices
         else:
             raise RuntimeError
+
+    def confusion_from_group(self, group):
+        """
+        creates a sub-confusion matrix from a group
+        """
+        # if group is str:
+        label_indices = self.groups[group]
+        label_names = [self.labels[index]
+                       for index in label_indices]
+        submatrix = self.matrix[label_indices][:, label_indices]
+        # elif group defines a new group: todo
+        return Confusion(label_names, submatrix)
 
     @staticmethod
     def from_wrong_preds(labels, preds, reals, labels_count):
