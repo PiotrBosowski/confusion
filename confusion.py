@@ -1,7 +1,8 @@
 import copy
 import json
-
 import numpy as np
+
+from sklearn.metrics import cohen_kappa_score
 
 
 class Confusion:
@@ -94,6 +95,12 @@ class Confusion:
         """Adds new results to existing confusion matrix."""
         # todo: update should pass parameters to existing Confusion c-tors and
         # todo: then perform __iadd__(self, other)
+        preds, reals = np.array(preds), np.array(reals)
+        if preds.ndim == reals.ndim == 2:
+            # if preds and reals are 2d arrays, we assume we need to argmax'em
+            preds = np.argmax(preds, axis=1)
+            reals = np.argmax(reals, axis=1)
+        # otherwise we just do the usual
         for index, _ in enumerate(reals):
             self.matrix[preds[index], reals[index]] += 1
 
