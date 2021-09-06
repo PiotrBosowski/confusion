@@ -1,6 +1,7 @@
 import copy
 import json
 import numpy as np
+import sklearn.metrics
 
 from sklearn.metrics import cohen_kappa_score
 
@@ -100,6 +101,7 @@ class Confusion:
             # if preds and reals are 2d arrays, we assume we need to argmax'em
             preds = np.argmax(preds, axis=1)
             reals = np.argmax(reals, axis=1)
+            print('balanced acc:', sklearn.metrics.balanced_accuracy_score(reals, preds))
         # otherwise we just do the usual
         for index, _ in enumerate(reals):
             self.matrix[preds[index], reals[index]] += 1
@@ -132,6 +134,9 @@ class Confusion:
 
     def accuracies_per_class(self):
         return self.matrix.diagonal() / self.matrix.sum(axis=0)
+
+    def balanced_accuracy(self, y_true, y_pred):
+        return sklearn.metrics.balanced_accuracy_score(y_true, y_pred)
 
     def mean_accuracy(self):
         accuracies_per_class = self.accuracies_per_class()
