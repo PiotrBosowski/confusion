@@ -112,7 +112,7 @@ class Confusion:
 
     def save(self, filepath):
         with open(filepath, "w") as file:
-            file.write(json.dumps(self, indent=2))
+            file.write(json.dumps(self.to_json(), indent=2))
 
     def to_json(self):
         return {'matrix': self.matrix.tolist(),
