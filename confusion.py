@@ -127,7 +127,10 @@ class Confusion:
                 }
 
     @staticmethod
-    def from_json(data):
+    def from_json(data=None, path=None):
+        if path:
+            with open(path) as json_file:
+                data = json.load(json_file)
         return Confusion(data['labels'],
                          len(data['labels']),
                          np.array(data['matrix']))
